@@ -123,6 +123,7 @@
         
         self.doneButton = [UIButton buttonWithType:UIButtonTypeCustom];
         [self.doneButton setImage:crossImage forState:UIControlStateNormal];
+        [self.doneButton setAccessibilityLabel:@"Close"];
         [self.doneButton addTarget:self action:@selector(handleDoneAction) forControlEvents:UIControlEventTouchUpInside];
         
         [self.view addSubview:self.doneButton];
