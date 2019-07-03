@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
     s.name         = "BFRImageViewer-SD"
     s.module_name  = "BFRImageViewer"
-    s.version      = "1.2.6"
+    s.version      = "1.2.7"
     s.summary      = "A turnkey solution to display photos and images of all kinds in your app."
     s.description  = <<-DESC
                     The BFRImageViewer is a turnkey solution to present images within your iOS app 🎉! 

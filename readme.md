@@ -1,4 +1,6 @@
-# BFRImageViewer
+# BFRImageViewer-SD
+
+BFRImageViewer-SD is a SDWebImage implementation for BFRImageViewer
 
 <p align="center">
   <img src="/demo.gif?raw=true" alt="Demo" />
