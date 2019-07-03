@@ -205,16 +205,15 @@
     __kindof UIView *resizableImageView;
     
     if (self.assetType == BFRImageAssetTypeLivePhoto) {
-        resizableImageView = [[PHLivePhotoView alloc] initWithFrame:CGRectZero];
+        resizableImageView = [[PHLivePhotoView alloc] initWithFrame:CGRectMake(0, 0, self.imgLoaded.size.width, self.imgLoaded.size.height)];
         ((PHLivePhotoView *)resizableImageView).livePhoto = self.liveImgLoaded;
     } else if (self.assetType == BFRImageAssetTypeGIF) {
-        resizableImageView = [SDAnimatedImageView new];
-        [((SDAnimatedImageView *)resizableImageView) setImage:self.imgSrc];
+        resizableImageView = [[SDAnimatedImageView alloc] initWithImage:self.imgSrc];
     } else if (self.imgView == nil) {
         resizableImageView = [[UIImageView alloc] initWithImage:self.imgLoaded];
     }
     
-    resizableImageView.frame = self.view.bounds;
+    //resizableImageView.frame = self.view.bounds;
     resizableImageView.clipsToBounds = YES;
     resizableImageView.contentMode = UIViewContentModeScaleAspectFit;
     resizableImageView.backgroundColor = [UIColor colorWithWhite:0 alpha:1];
@@ -306,27 +305,48 @@
     
     // Sizes
     CGSize boundsSize = self.scrollView.bounds.size;
-    CGSize imageViewSize = self.activeAssetView.frame.size;
-    CGSize imageSize = (self.assetType == BFRImageAssetTypeLivePhoto) ? self.liveImgLoaded.size : self.imgLoaded.size;
-    // Calculate Min
-    CGFloat xScale = boundsSize.width / imageViewSize.width;
-    CGFloat yScale = boundsSize.height / imageViewSize.height;
-    CGFloat minScale = MIN(xScale, yScale);
+    CGSize imageSize = self.activeAssetView.frame.size;
     
-    CGFloat imageXScale = imageSize.width / boundsSize.width;
-    CGFloat imageYScale = imageSize.height / boundsSize.height;
+    // Calculate Min
+    CGFloat xScale =  imageSize.width / boundsSize.width ;
+    CGFloat yScale =  imageSize.height / boundsSize.height;
+    
+    CGFloat minScale = MIN(MIN(xScale, yScale),1.0);
     
     // Calculate Max
-    CGFloat maxScale = MAX(MAX(imageYScale,imageXScale),4.0);
-   if (maxScale < minScale) {
-        maxScale = minScale * 2;
-   }
+    CGFloat maxImageScale = MAX(xScale, yScale);
+    CGFloat maxScaleMainly = MAX(maxImageScale,2.0);
     
+    CGFloat maxScale = maxScaleMainly;
+
+    if (maxScale < minScale) {
+        maxScale = minScale * 2;
+    }
     
     // Apply zoom
     self.scrollView.maximumZoomScale = maxScale;
     self.scrollView.minimumZoomScale = minScale;
-    self.scrollView.zoomScale = minScale;
+    [self.scrollView setContentSize:imageSize];
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        switch (self.contentMode) {
+            case BFRImageContentModeOrigin:
+                //[self.scrollView setZoomScale:maxImageScale animated:NO];
+                //self.scrollView.contentOffset = CGPointZero;
+                [self.scrollView setZoomScale:maxImageScale];
+                [self.scrollView setContentOffset:CGPointZero animated:NO];
+                break;
+            case BFRImageContentModePreferFillWidth:
+                if(xScale < yScale){
+                    [self.scrollView setZoomScale:yScale/xScale animated:NO];
+                    [self.scrollView setContentOffset:CGPointZero animated:NO];
+                }
+                break;
+            default:
+                break;
+        }
+    });
+
 }
 
 /*! Called during zooming of the image to ensure it stays centered */

@@ -8,6 +8,13 @@
 
 #import <UIKit/UIKit.h>
 
+typedef NS_ENUM(NSUInteger, BFRImageContentMode) {
+    BFRImageContentModeShowAll,
+    BFRImageContentModeOrigin,
+    BFRImageContentModePreferFillWidth
+};
+
+
 @interface BFRImageViewController : UIViewController
 
 - (instancetype _Nullable)init NS_UNAVAILABLE;
@@ -41,6 +48,9 @@
 
 /*! Allows you to enable autoplay for peek&play feature on photo live view. Default to YES */
 @property (nonatomic, getter=shouldDisableAutoplayForLivePhoto) BOOL disableAutoplayForLivePhoto;
+
+@property (nonatomic, assign) BFRImageContentMode contentMode;
+
 
 /*! Dismiss properly with animations */
 - (void)dismiss;

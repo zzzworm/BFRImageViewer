@@ -7,6 +7,7 @@
 //
 
 #import <UIKit/UIKit.h>
+#import "BFRImageViewController.h"
 
 typedef NS_ENUM(NSUInteger, BFRImageAssetType) {
     BFRImageAssetTypeImage,
@@ -24,6 +25,8 @@ typedef NS_ENUM(NSUInteger, BFRImageAssetType) {
 
 /*! The type of asset that is being represented by the given @p imgSrc. */
 @property (nonatomic, assign) BFRImageAssetType assetType;
+
+@property (nonatomic, assign) BFRImageContentMode contentMode;
 
 /*! This will determine whether to change certain behaviors for 3D touch considerations based on its value. */
 @property (nonatomic, getter=isBeingUsedFor3DTouch) BOOL usedFor3DTouch;

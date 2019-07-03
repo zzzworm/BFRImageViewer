@@ -55,6 +55,8 @@
         self.showDoneButtonOnLeft = YES;
         self.disableAutoplayForLivePhoto = YES;
         self.parallaxView = [UIView new];
+        
+        //self.contentMode = BFRImageContentModeOri;
     }
     
     return self;
@@ -178,6 +180,7 @@
     self.imageViewControllers = [NSMutableArray new];
     for (id imgSrc in self.images) {
         BFRImageContainerViewController *imgVC = [BFRImageContainerViewController new];
+        imgVC.contentMode = self.contentMode;
         imgVC.imgSrc = imgSrc;
         imgVC.pageIndex = self.startingIndex;
         imgVC.usedFor3DTouch = self.isBeingUsedFor3DTouch;
