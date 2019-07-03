@@ -1,5 +1,6 @@
 Pod::Spec.new do |s|
-    s.name         = "BFRImageViewer"
+    s.name         = "BFRImageViewer-SD"
+    s.module_name  = "BFRImageViewer"
     s.version      = "1.2.6"
     s.summary      = "A turnkey solution to display photos and images of all kinds in your app."
     s.description  = <<-DESC
@@ -20,5 +21,5 @@ Pod::Spec.new do |s|
     s.platform     = :ios, '11.0'
     s.requires_arc = true
     s.frameworks = "UIKit", "Photos"
-    s.dependency 'PINRemoteImage', '~> 3.0.0-beta.14'
+    s.dependency 'SDWebImage', '~> 5.0'
 end

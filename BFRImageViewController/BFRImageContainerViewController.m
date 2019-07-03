@@ -12,9 +12,8 @@
 #import "BFRImageViewerConstants.h"
 #import <Photos/Photos.h>
 #import <PhotosUI/PhotosUI.h>
-#import <PINRemoteImage/PINAnimatedImageView.h>
-#import <PINRemoteImage/PINRemoteImage.h>
-#import <PINRemoteImage/PINImageView+PINRemoteImage.h>
+#import <SDWebImage/SDWebImage.h>
+
 
 @interface BFRImageContainerViewController () <UIScrollViewDelegate, UIGestureRecognizerDelegate>
 
@@ -22,10 +21,13 @@
 @property (strong, nonatomic, nonnull) UIScrollView *scrollView;
 
 /*! The actual view which will display the @c UIImage, this is housed inside of the scrollView property. */
-@property (strong, nonatomic, nullable) PINAnimatedImageView *imgView;
+@property (strong, nonatomic, nullable) UIImageView *imgView;
 
 /*! The actual view which will display the @c PHLivePhoto, this is housed inside of the scrollView property. */
 @property (strong, nonatomic, nullable) PHLivePhotoView *livePhotoImgView;
+
+/*! The actual view which will display the @c PHLivePhoto, this is housed inside of the scrollView property. */
+@property (strong, nonatomic, nullable) SDAnimatedImageView *animatedImgView;
 
 /*! The image created from the passed in imgSrc property. */
 @property (strong, nonatomic, nullable) UIImage *imgLoaded;
@@ -55,6 +57,17 @@
 #pragma mark - Computed Property
 
 - (__kindof UIView *)activeAssetView {
+    switch (self.assetType) {
+        case BFRImageAssetTypeLivePhoto:
+            return self.livePhotoImgView;
+            break;
+        case BFRImageAssetTypeGIF:
+            return self.animatedImgView;
+            break;
+        default:
+            return self.imgView;
+            break;
+    }
     return (self.assetType == BFRImageAssetTypeLivePhoto) ? self.livePhotoImgView : self.imgView;
 }
 
@@ -99,9 +112,9 @@
             self.assetType = BFRImageAssetTypeImage;
             [self retrieveImageFromAsset];
         }
-    } else if ([self.imgSrc isKindOfClass:[PINCachedAnimatedImage class]]) {
+    } else if ([self.imgSrc isKindOfClass:[SDAnimatedImage class]]) {
         self.assetType = BFRImageAssetTypeGIF;
-        [self retrieveImageFromPINCachedAnimatedImage];
+        [self retrieveImageFromSDAnimatedImage];
     } else if ([self.imgSrc isKindOfClass:[NSString class]]) {
         self.assetType = BFRImageAssetTypeRemoteImage;
         // Loading view
@@ -170,7 +183,11 @@
     sv.showsVerticalScrollIndicator = NO;
     sv.decelerationRate = UIScrollViewDecelerationRateFast;
     sv.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    sv.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+    if (@available(iOS 11.0, *)) {
+        sv.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+    } else {
+        self.automaticallyAdjustsScrollViewInsets = NO;
+    }
     
     //For UI Toggling
     UITapGestureRecognizer *singleSVTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissUI)];
@@ -191,10 +208,10 @@
         resizableImageView = [[PHLivePhotoView alloc] initWithFrame:CGRectZero];
         ((PHLivePhotoView *)resizableImageView).livePhoto = self.liveImgLoaded;
     } else if (self.assetType == BFRImageAssetTypeGIF) {
-        resizableImageView = [PINAnimatedImageView new];
-        [((PINAnimatedImageView *)resizableImageView) setAnimatedImage:self.imgSrc];
+        resizableImageView = [SDAnimatedImageView new];
+        [((SDAnimatedImageView *)resizableImageView) setImage:self.imgSrc];
     } else if (self.imgView == nil) {
-        resizableImageView = [[PINAnimatedImageView alloc] initWithImage:self.imgLoaded];
+        resizableImageView = [[UIImageView alloc] initWithImage:self.imgLoaded];
     }
     
     resizableImageView.frame = self.view.bounds;
@@ -238,7 +255,7 @@
             self.livePhotoImgView.playbackGestureRecognizer.enabled = NO;
         }
     } else {
-        self.imgView = (PINAnimatedImageView *)resizableImageView;
+        self.imgView = resizableImageView;
     }
 }
 
@@ -256,10 +273,10 @@
     if ([hiResResult isKindOfClass:[UIImage class]]) {
         self.imgLoaded = hiResResult;
         self.imgView.image = self.imgLoaded;
-    } else if ([hiResResult isKindOfClass:[PINCachedAnimatedImage class]]) {
+    } else if ([hiResResult isKindOfClass:[SDAnimatedImage class]]) {
         self.assetType = BFRImageAssetTypeGIF;
         self.imgSrc = hiResResult;
-        [self retrieveImageFromPINCachedAnimatedImage];
+        [self retrieveImageFromSDAnimatedImage];
     }
 }
 
@@ -289,22 +306,22 @@
     
     // Sizes
     CGSize boundsSize = self.scrollView.bounds.size;
-    CGSize imageSize = self.activeAssetView.frame.size;
-    
+    CGSize imageViewSize = self.activeAssetView.frame.size;
+    CGSize imageSize = (self.assetType == BFRImageAssetTypeLivePhoto) ? self.liveImgLoaded.size : self.imgLoaded.size;
     // Calculate Min
-    CGFloat xScale = boundsSize.width / imageSize.width;
-    CGFloat yScale = boundsSize.height / imageSize.height;
+    CGFloat xScale = boundsSize.width / imageViewSize.width;
+    CGFloat yScale = boundsSize.height / imageViewSize.height;
     CGFloat minScale = MIN(xScale, yScale);
     
+    CGFloat imageXScale = imageSize.width / boundsSize.width;
+    CGFloat imageYScale = imageSize.height / boundsSize.height;
+    
     // Calculate Max
-    CGFloat maxScale = 4.0;
-    if ([UIScreen instancesRespondToSelector:@selector(scale)]) {
-        maxScale = maxScale / [[UIScreen mainScreen] scale];
-        
-        if (maxScale < minScale) {
-            maxScale = minScale * 2;
-        }
-    }
+    CGFloat maxScale = MAX(MAX(imageYScale,imageXScale),4.0);
+   if (maxScale < minScale) {
+        maxScale = minScale * 2;
+   }
+    
     
     // Apply zoom
     self.scrollView.maximumZoomScale = maxScale;
@@ -467,13 +484,13 @@
     }];
 }
 
-- (void)retrieveImageFromPINCachedAnimatedImage {
-    if (![self.imgSrc isKindOfClass:[PINCachedAnimatedImage class]]) {
+- (void)retrieveImageFromSDAnimatedImage {
+    if (![self.imgSrc isKindOfClass:[SDAnimatedImage class]]) {
         return;
     }
     
-    PINCachedAnimatedImage *image = (PINCachedAnimatedImage *)self.imgSrc;
-    self.imgLoaded = image.coverImage;
+    SDAnimatedImage *image = (SDAnimatedImage *)self.imgSrc;
+    self.imgLoaded = image;
     
     [self addImageToScrollView];
 }
@@ -481,26 +498,26 @@
 - (void)retrieveImageFromURL {
     NSURL *url = (NSURL *)self.imgSrc;
     
-    [[PINRemoteImageManager sharedImageManager] downloadImageWithURL:url options:0 progressDownload:^(int64_t completedBytes, int64_t totalBytes) {
-        float fractionCompleted = (float)completedBytes/(float)totalBytes;
+    [[SDWebImageManager sharedManager] loadImageWithURL:url options:0 progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+        float fractionCompleted = (float)receivedSize/(float)expectedSize;
         dispatch_async(dispatch_get_main_queue(), ^{
             self.progressView.progress = fractionCompleted;
         });
-    } completion:^(PINRemoteImageManagerResult * _Nonnull result) {
+    } completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
         
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (result.error || (!result.image && !result.alternativeRepresentation)) {
+            if (error || !image) {
                 [self.progressView removeFromSuperview];
                 [self showError];
                 return;
             }
             
-            if(result.alternativeRepresentation){
+            if([image isKindOfClass:SDAnimatedImage.class]){
                 self.assetType = BFRImageAssetTypeGIF;
-                self.imgSrc = result.alternativeRepresentation;
-                [self retrieveImageFromPINCachedAnimatedImage];
+                self.imgSrc = image;
+                [self retrieveImageFromSDAnimatedImage];
             } else {
-                self.imgLoaded = result.image;
+                self.imgLoaded = image;
                 [self addImageToScrollView];
             }
             
@@ -528,11 +545,21 @@
     [tb setShadowImage:[UIImage new] forToolbarPosition:UIBarPositionAny];
     tb.translatesAutoresizingMaskIntoConstraints = NO;
     
-    [tb.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor].active = YES;
-    [tb.widthAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.widthAnchor].active = YES;
-    [tb.centerXAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.centerXAnchor].active = YES;[tb.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor].active = YES;
-    [tb.widthAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.widthAnchor].active = YES;
-    [tb.centerXAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.centerXAnchor].active = YES;
+    if (@available(iOS 11.0, *)) {
+        [tb.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor].active = YES;
+        [tb.widthAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.widthAnchor].active = YES;
+        [tb.centerXAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.centerXAnchor].active = YES;[tb.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor].active = YES;
+        [tb.widthAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.widthAnchor].active = YES;
+        [tb.centerXAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.centerXAnchor].active = YES;
+    } else {
+        // Fallback on earlier versions
+        [tb.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor].active = YES;
+        [tb.widthAnchor constraintEqualToAnchor:self.view.widthAnchor].active = YES;
+        [tb.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor].active = YES;[tb.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor].active = YES;
+        [tb.widthAnchor constraintEqualToAnchor:self.view.widthAnchor].active = YES;
+        [tb.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor].active = YES;
+    }
+    
 }
 
 - (void)dismissUI {

@@ -46,9 +46,12 @@
 }
 
 - (void)openImageViewer {
-    BFRBackLoadedImageSource *backloadedImage = [[BFRBackLoadedImageSource alloc] initWithInitialImage:[UIImage imageNamed:@"lowResImage"] hiResURL:[NSURL URLWithString:@"https://overflow.buffer.com/wp-content/uploads/2016/12/1-hByZ0VpJusdVwpZd-Z4-Zw.png"]];
+    //BFRBackLoadedImageSource *backloadedImage = [[BFRBackLoadedImageSource alloc] initWithInitialImage:[UIImage imageNamed:@"IMG_0359"] hiResURL:[NSBundle.mainBundle URLForResource:@"IMG_0359" withExtension:@"jpg"]];
     
-    BFRImageViewController *imageVC = [[BFRImageViewController alloc] initWithImageSource:@[backloadedImage]];
+    //[NSURL URLWithString:@"https://overflow.buffer.com/wp-content/uploads/2016/12/1-hByZ0VpJusdVwpZd-Z4-Zw.png"]
+    NSURL *fileUrl = [NSBundle.mainBundle URLForResource:@"IMG_0359" withExtension:@"JPG"];
+    UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:fileUrl]];
+    BFRImageViewController *imageVC = [[BFRImageViewController alloc] initWithImageSource:@[image]];
     [self presentViewController:imageVC animated:YES completion:nil];
 }
 

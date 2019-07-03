@@ -9,8 +9,7 @@
 #import "BFRBackLoadedImageSource.h"
 #import "BFRImageViewerConstants.h"
 #import <UIKit/UIKit.h>
-#import <PINRemoteImage/PINRemoteImage.h>
-#import <PINRemoteImage/PINImageView+PINRemoteImage.h>
+#import <SDWebImage/SDWebImage.h>
 
 @interface BFRBackLoadedImageSource()
 
@@ -42,11 +41,11 @@
 #pragma mark - Backloading
 
 - (void)loadHighFidelityImage {
-    [[PINRemoteImageManager sharedImageManager] downloadImageWithURL:self.url options:PINRemoteImageManagerDownloadOptionsNone progressDownload:nil completion:^(PINRemoteImageManagerResult * _Nonnull result) {
+    [SDWebImageManager.sharedManager loadImageWithURL:self.url options:SDWebImageRetryFailed|SDWebImageAllowInvalidSSLCertificates | SDWebImageScaleDownLargeImages|SDWebImageContinueInBackground progress:nil completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if (self.onCompletion != nil) {
-                if (result.image) {
-                    self.onCompletion(result.image, nil);
+                if (image) {
+                    self.onCompletion(image, nil);
                 } else {
                     NSLog(@"BFRImageViewer: Unable to load high resolution photo via backloading.");
                     NSError *downloadError = [NSError errorWithDomain:HI_RES_IMG_ERROR_DOMAIN
@@ -56,7 +55,7 @@
                 }
             }
             
-            id returnResult = result.alternativeRepresentation ? result.alternativeRepresentation : result.image;
+            id returnResult = image;
             [[NSNotificationCenter defaultCenter] postNotificationName:NOTE_HI_RES_IMG_DOWNLOADED object:returnResult];
         });
     }];
