@@ -56,7 +56,7 @@
         self.disableAutoplayForLivePhoto = YES;
         self.parallaxView = [UIView new];
         
-        //self.contentMode = BFRImageContentModeOri;
+        self.contentMode = BFRImageContentModePreferFillWidth;
     }
     
     return self;

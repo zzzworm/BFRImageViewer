@@ -71,6 +71,11 @@
     return (self.assetType == BFRImageAssetTypeLivePhoto) ? self.livePhotoImgView : self.imgView;
 }
 
+- (CGSize)activeAssetSize
+{
+    return (self.assetType == BFRImageAssetTypeLivePhoto) ? self.liveImgLoaded.size : self.imgLoaded.size;
+}
+
 #pragma mark - Lifecycle
 
 // With peeking and popping, setting up your subviews in loadView will throw an exception
@@ -134,28 +139,10 @@
 }
 
 - (void)viewWillLayoutSubviews {
+    [super viewWillLayoutSubviews];
     // Scrollview
     [self.scrollView setFrame:self.view.bounds];
-    
-    // Set the aspect ratio of the image
-    float hfactor = self.imgLoaded.size.width / self.view.bounds.size.width;
-    float vfactor = self.imgLoaded.size.height /  self.view.bounds.size.height;
-    float factor = fmax(hfactor, vfactor);
-    
-    // Divide the size by the greater of the vertical or horizontal shrinkage factor
-    float newWidth = self.imgLoaded.size.width / factor;
-    float newHeight = self.imgLoaded.size.height / factor;
-    
-    // Then figure out offset to center vertically or horizontally
-    float leftOffset = (self.view.bounds.size.width - newWidth) / 2;
-    float topOffset = ( self.view.bounds.size.height - newHeight) / 2;
-    
-    // Reposition image view
-    CGRect newRect = CGRectMake(leftOffset, topOffset, newWidth, newHeight);
-    
-    // Check for any NaNs, which should get corrected in the next drawing cycle
-    BOOL isInvalidRect = (isnan(leftOffset) || isnan(topOffset) || isnan(newWidth) || isnan(newHeight));
-    self.activeAssetView.frame = isInvalidRect ? self.view.bounds : newRect;
+//    self.activeAssetView.frame = CGRectMake(self.activeAssetView.frame.origin.x, self.activeAssetView.frame.origin.y, self.view.bounds.size.width, self.view.bounds.size.height);
 }
 
 - (void)dealloc {
@@ -213,7 +200,7 @@
         resizableImageView = [[UIImageView alloc] initWithImage:self.imgLoaded];
     }
     
-    //resizableImageView.frame = self.view.bounds;
+    resizableImageView.frame = self.view.bounds;
     resizableImageView.clipsToBounds = YES;
     resizableImageView.contentMode = UIViewContentModeScaleAspectFit;
     resizableImageView.backgroundColor = [UIColor colorWithWhite:0 alpha:1];
@@ -261,7 +248,37 @@
 - (void)addImageToScrollView {
     [self createActiveAssetView];
     [self.scrollView addSubview:self.activeAssetView];
-    [self setMaxMinZoomScalesForCurrentBounds];
+    CGSize boundsSize = self.scrollView.bounds.size;
+    [self setMaxMinZoomScalesForCurrentBounds:boundsSize];
+    
+    // Sizes
+    CGSize imageSize = self.activeAssetSize;
+    
+    // Calculate Min
+    CGFloat xScale =  imageSize.width / boundsSize.width ;
+    CGFloat yScale =  imageSize.height / boundsSize.height;
+    
+    // Calculate Max
+    CGFloat maxImageScale = MAX(xScale, yScale);
+//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        switch (self.contentMode) {
+            case BFRImageContentModeOrigin:
+                //[self.scrollView setZoomScale:maxImageScale animated:NO];
+                //self.scrollView.contentOffset = CGPointZero;
+                [self.scrollView setZoomScale:maxImageScale];
+                [self.scrollView setContentOffset:CGPointZero animated:NO];
+                break;
+            case BFRImageContentModePreferFillWidth:
+                if(xScale < yScale){
+                    [self.scrollView setZoomScale:yScale/xScale animated:NO];
+                    [self.scrollView setContentOffset:CGPointMake((yScale/xScale-1)/2*UIScreen.mainScreen.bounds.size.width, 0) animated:NO];
+                }
+                break;
+            default:
+                break;
+        }
+//    });
+
 }
 
 #pragma mark - Backloaded Image Notification
@@ -277,6 +294,13 @@
         self.imgSrc = hiResResult;
         [self retrieveImageFromSDAnimatedImage];
     }
+}
+
+#pragma mark - orientation change
+
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
+{
+    [self setMaxMinZoomScalesForCurrentBounds:size];
 }
 
 #pragma mark - Gesture Recognizer Delegate
@@ -301,11 +325,10 @@
 #pragma mark - Scrollview Util Methods
 
 /*! This calculates the correct zoom scale for the scrollview once we have the image's size */
-- (void)setMaxMinZoomScalesForCurrentBounds {
+- (void)setMaxMinZoomScalesForCurrentBounds:(CGSize)boundsSize {
     
     // Sizes
-    CGSize boundsSize = self.scrollView.bounds.size;
-    CGSize imageSize = self.activeAssetView.frame.size;
+    CGSize imageSize = self.activeAssetSize;
     
     // Calculate Min
     CGFloat xScale =  imageSize.width / boundsSize.width ;
@@ -315,37 +338,17 @@
     
     // Calculate Max
     CGFloat maxImageScale = MAX(xScale, yScale);
-    CGFloat maxScaleMainly = MAX(maxImageScale,2.0);
+    CGFloat maxScaleMainly = MAX(maxImageScale,1.0);
     
     CGFloat maxScale = maxScaleMainly;
 
-    if (maxScale < minScale) {
+    if (maxScale <= minScale) {
         maxScale = minScale * 2;
     }
     
     // Apply zoom
     self.scrollView.maximumZoomScale = maxScale;
     self.scrollView.minimumZoomScale = minScale;
-    [self.scrollView setContentSize:imageSize];
-    
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        switch (self.contentMode) {
-            case BFRImageContentModeOrigin:
-                //[self.scrollView setZoomScale:maxImageScale animated:NO];
-                //self.scrollView.contentOffset = CGPointZero;
-                [self.scrollView setZoomScale:maxImageScale];
-                [self.scrollView setContentOffset:CGPointZero animated:NO];
-                break;
-            case BFRImageContentModePreferFillWidth:
-                if(xScale < yScale){
-                    [self.scrollView setZoomScale:yScale/xScale animated:NO];
-                    [self.scrollView setContentOffset:CGPointZero animated:NO];
-                }
-                break;
-            default:
-                break;
-        }
-    });
 
 }
 
